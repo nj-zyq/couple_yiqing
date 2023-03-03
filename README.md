@@ -2,6 +2,13 @@
 
 This is a file to compile COUPLE (an ocean acoustic model) successfully.
 
+- **couple07.zip** The original code of couple (exinxin)
+- **./couple07** The folder or corrected couple (can be compiled by gfortran 9.4.0)
+    
+    - **../couple07/couple**  The folder for original code files
+    - **../couple07/test** The folder for calculating
+
+
 ## Steps for compiling
 
 - Change the compiler from f77 to gfortran
