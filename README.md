@@ -2,7 +2,7 @@
 
 This is a file to compile COUPLE (an ocean acoustic model) successfully.
 
-Steps for compiling:
+## Steps for compiling
 
 - Change the compiler from f77 to gfortran
 
@@ -19,7 +19,7 @@ Steps for compiling:
 - Make sure there are no extra spaces in makefile and the name of the files are correct
 
 
-Steps for running COUPLE:
+## Steps for running COUPLE
 
 - Copy the executable files 'test.dat' and  'couple' to another folder '../test'
 
