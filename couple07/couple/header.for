@@ -18,7 +18,13 @@ c      da=date_time(5:7)//date_time(9:10)//','//date_time(21:24)
 C
 C    FIND DATE IN LAHEY
 C               
-      CALL DATE(DA) 
+C
+C YIQING: 
+C THERE IS NO 'DATE' IN GFORTRAN
+C USE FDATE INSTEAD
+C https://gcc.gnu.org/onlinedocs/gfortran/FDATE.html
+C      CALL DATE(DA) 
+      CALL FDATE(DA)
 C
 C     FIND DATE IN SVS
 C
