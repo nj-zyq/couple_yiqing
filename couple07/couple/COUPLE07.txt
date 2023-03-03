@@ -1,0 +1,673 @@
+                COUPLE, December 11, 2007 Version 
+         
+               Documentation by Richard B. Evans 
+           99F Hugo Road, North Stonington, CT 06359, USA
+                        (860) 889-1636
+
+     INTRODUCTION:
+
+       The motivation for the computer program COUPLE came from
+     the first Parabolic Equation Workshop [1] held at the Naval
+     Ocean Research and Development Activity at the Stennis
+     Space Center in Bay St. Louis, MS in the spring of 1981.
+     There was a clear need for benchmark solutions to range
+     dependent underwater acoustic propagation problems, which
+     did not exist at that time. COUPLE was written in response
+     to this need.
+
+       COUPLE is a program that performs a coupled normal mode
+     calculation of the underwater acoustic field in a sequence
+     of environmental regions with depth dependent variations
+     of the sound speed, attenuation, and density. The
+     environmental regions consist of a water layer and a
+     bottom sediment layer, separated by a linearly sloping
+     water-sediment interface.
+
+        A pressure release boundary is imposed at the surface of 
+     the water and at the greatest depth in the bottom sediment.
+     the water depth may vary with range but the total thickness
+     of water and bottom sediment layers is fixed.
+
+        The linearly slopping bottom is approximated by a sequence
+     of locally flat computational regions that give rise to
+     the name stepwise coupled modes [2 and 6, pp. 315-319]. Mode
+     coupling occurs, discretely, at the vertical interfaces
+     between the regions.
+
+        The depth variations of the sound speed and attenuation are
+     assumed to be such that the complex wave number squared is
+     continuous and piecewise linear, in both layers. The density
+     is assumed to be continuous and piecewise exponential, in both
+     layers. There is usually a discontinuity at the water-sediment
+     interface, i.e., at the bottom. This environment is referred 
+     to as the complex foreground model. The normal modes are
+     needed, for the complex foreground model, in each of the
+     locally flat computational regions. These normal modes, or
+     eigenfunctions, are approximated with the Galerkin method [3].
+     Also see the accompanying file Galerkin_Couple07.pdf.
+
+        The Galerkin method is employed, using a basis of real
+     eigenfunctions from a lossless background model consisting
+     of a homogeneous water layer over a homogeneous bottom
+     sediment layer. The density discontinuity at the water-
+     sediment interface in the background model is chosen to
+     match the density discontinuity, at the water-sediment
+     interface, in the complex foreground model. The 
+     eigenfunctions of the complex foreground model are
+     approximated as a finite sum of the real eigenfunctions
+     of the background model, with complex coefficients.
+     consequently, the differential eigenvalue problem, for
+     the eigenfunctions, is replace by a finite dimensional
+     generalized matrix eigenvalue problem. The complex eigen-
+     values are approximated by the matrix eigenvalues. The
+     complex eigenfunctions, or modes, are constructed from the
+     matrix eigenvectors. The Galerkin approximation procedure
+     is carried out in subroutine GALRKN
+
+        In the case that the fully elliptic two way solution is
+     computed (IOUT=0), the decoupling algorithm [5 and 9] is
+     used to solve the matrix two-point boundary value problem
+     that occurs in the stepwise coupled mode formulation. This
+     eliminates the numerical problem inherent in the shooting
+     method that was initially used.
+
+       The purpose of this document is to describe the inputs 
+     and outputs of COUPLE. There is also a brief description
+     of how to compile, link and run the FORTRAN source code
+     that comprises the program.
+
+
+     I. INPUTS:
+
+     Block 0 (1 record): TITLE
+     -------
+     Block 1 (1 record): HB,FREQ,ZS
+     -------
+     HB = Total thickness of water and sediment layer (m).
+     FREQ = Frequency (Hz).
+     ZS = Source depth (m).
+     
+     Block 2 (1 record):  M,IGEOM,IREFL
+     -------
+     M = Number of contributing modes (Maximum=MX=400).
+     IGEOM = Flag used to indicate cylindrical or plane geometry.
+                IGEOM=0 - Cylindrical geometry is used with a point
+                          source.
+                IGEOM=1 - Plane geometry is used with a line source.
+     IREFL = Flag to control the source condition at range zero.
+                IREFL=0 - Perfectly cylindrically symmetric geometry 
+                          is assumed.
+                IREFL=1 - The source is backed by an absorber at
+                          negative ranges in cylindrical or plane
+                          geometry.
+
+     Block 3 (1 record): NDEP,ZMIN,ZINC
+     -------
+     NDEP= Number of receiver depths in the pressure calculation 
+           (Maximum=MD=400).
+     ZMIN = Minimum receiver depth (m).
+     ZINC = Increment between the receiver depths (m).
+
+     Block 4 (1 record): RMIN,RMAX,RINC
+     -------
+     RMIN = Minimum range in the pressure calculation (km).
+     RMAX = Maximum range in the pressure calculation (km).
+     RINC = Increment between ranges in the pressure calculation
+            (km).
+
+     Block 5 (1 record): N,IPRT,IOUT
+     -------
+     N = Number of environmental regions, headed by range-depth 
+         pairs, to follow (Maximum=NRX=2002).
+     IPRT = Print flag for details of the calculation such as
+            eigenvalues, coupling matrices and coefficients of 
+            outgoing and ingoing waves. If IPRT>0, then details
+            of the calculation are printed for the first, last
+            and every IPRT region in between. 
+     IOUT = Flag that controls the matching condition used at the 
+            vertical interfaces in the range marching scheme.
+               IOUT= -1 - A single scatter approximation is used.
+               IOUT=  0 - The program computes the fully elliptic 
+                          two way solution that matches both the 
+                          pressure and radial particle velocity.
+               IOUT=  1 - The one way pressure matching solution
+                          is found.
+               IOUT=  2 - The adiabatic approximation is used.
+
+
+     Block 6(J) (1+NPW(J)+NPB(J) records):
+     ----------
+     First record: RANG(J),IRLIN(J),DPTH(J),NPW(J),NPB(J)
+     +++++
+
+     RANG(J) = Range at the start of the J th region (km). The
+               range at the start of the first region must be
+               zero (RANG(1)=0.0)
+     IRLIN(J) = Number of additional regions generated to represent
+                a linearly sloping bottom between RANG(J) and
+                RANG(J+1). See subroutine BATHY.
+     DPTH(J) = Depth of the water at RANG(J) (m).
+     NPW(J) = Number of points in the water sound speed, attenuation, 
+              and density profile at RANG(J).
+              NPW(J)>1 - A water sound speed, attenuation, and
+                         density profile must be provided
+              NPW(J)<0 and J>1 - No profile is provided, but the
+                               previously input profile is reused.
+                               The input water depth DPTH(J) is
+                               incorporated into the bathymetry
+                               sequence and the water profile is
+                               interpolated or extrapolated to the
+                               input water depth DPTH(J). 
+     NPB(J) = Number of points in the bottom sound speed, attenuation, 
+              and density profile at RANG(J). NPB(J) must follow the
+              same two cases as NPW(J). 
+              NPB(J)>1 - A bottom sound speed, attenuation, and  
+                         density profile must be provided
+              NPB(J)<0 and J>1 - No profile follows The previously
+                               input bottom profile is retained and
+                               the surficial sediment values, in the 
+                               profile, are preserved by moving the
+                               profile up and down with the bathymetry.
+                               The resulting bottom profile is inter-
+                               polated or extrapolated to the ultimate
+                               bottom depth HB.
+                              
+
+     Next NPW(J) records if NPW(J) > 1:
+     ++++
+     DEPW(J,L),SVPW(J,L),DBPWLW(J),RHOW(J,L), L=1,NPW(J) 
+
+     DEPW(J,L) = Depth (m) of sound speed in the water
+                 (DEP(J,1)=0.0).
+     SVPW(J,L) = Sound speed in the water (m/s).
+     DBPWLW(J,L) = Attenuation in the water (dB/wavelength).
+     RHOW(J,L) = Density in the water (g/cm**3).
+
+
+     Last NPB(J) records when NPB(J) > 1:
+     ++++
+     DEPB(J,L),SVPB(J,L),DBPWLB(J,L),RHOB(J,L),L=1,NPB(J)
+
+     DEPB(J,L) = Depth (m) of sound speed in the bottom measured 
+                 from the water surface (DEPB(J,1)=DEP(J,NPW(J))).
+     SVPB(J,L) = Sound speed in the bottom (m/s).
+     DBPWLB(J,L) = Attenuation in the bottom (dB/wavelength).
+     RHOB(J,L) = Density in the bottom (g/cm**3).
+
+
+     II. SUGGESTIONS AND COMMENTS:
+
+     Block 1:
+     -------
+     HB should be large enough to provide space for an absorber in
+     the deepest part of the problem. The artificial absorber, where
+     the attenuation increases significantly with depth, is often
+     included at the bottom of the physical sediment.
+
+     Block 2:
+     -------
+     M should be chosen to be at least twice as large as the total
+     number of propagating and significant bottom interacting modes.
+     Convergence of the Galerkin procedure should be checked by
+     increasing M until the change in the calculated field is
+     insignificant.
+
+     Block 5 
+     -------
+     IOUT=-1: The single scatter approximation [6 and 7, p. 320]
+     is the most practical choice and can be used as a verification
+     of the more efficient parabolic equations models [7, pp. 343-
+     412] used in underwater acoustics.
+
+     IOUT=0: The fully elliptic two-way solution is less efficient
+     than the single scatter approximation; but it can be used when
+     the backscattered field is of interest.
+
+     IOUT=1: The pressure matching solution is mainly of historical
+     interest.
+
+     IOUT=2: The adiabatic approximation [7, p. 320-323] serves as
+     an example of an alternative (more approximate) coupled mode
+     solution.
+
+     Block 6(J) :
+     ----------
+     Use IRLIN(J)=0 for flat regions (also see below) or make
+     IRLIN(J) larger than one for sloping regions.  
+
+     The choice of IRLIN(J) is made with guidance from [8]. 
+     Convergence of the stair-step approximation should be
+     checked by increasing IRLIN(J) until the change in the
+     calculated field is sufficiently small.
+     
+     In long flat regions with J>1 and IOUT=0, it may still be
+     necessary to make IRLIN(J) larger than one to include zero
+     height bathymetry changes to activate the decoupling algorithm
+     to normalize the solution and accurately compute ingoing and
+     outgoing waves.
+
+     A small amount of attenuation (e.g. 0.000001 dB/wave length)
+     in the water layer is useful in suppressing non-physical
+     eigenvalues.
+
+
+     III. TEST CASES:
+
+       The following four test cases demonstrate how to setup the
+     the input *.dat file. A full input file for each of the test
+     cases can be found in the ASCII text files test1.dat through
+     test4.dat. Also see the file Couple07_TestCases.pdf for plots
+     of the transmission loss from the test cases.
+
+     Test Case 1:  The first test case is a range independent
+     problem from the first Parabolic Equation Workshop [1] that
+     demonstrates the importance of high angle modes. A plot of
+     the discussion solution can be found in [7, pp. 355-357].
+     The absorber is homogeneous in this case.
+
+     PE Workshop I, Test Case 3b, 28 modes
+     400.  250.0   99.5                     !HB,FREQ,ZS
+     28  0   0                              !M,IGEOM,IREFL
+     1   99.5    0.0                        !NDEP,ZMIN,ZINC
+     4.9  10.1   .01                        !RMIN,RMAX,RINC
+     2   1   1                              !N,IPRT,IOUT
+     0.00     0    100.0    2   2           !RANG,IRLIN,DPTH,NPW,NPB
+       0.0    1500.0    0.0   1.0           !DEPW,SVPW,DBPWLW,RHOW 
+     100.0    1500.0    0.0   1.0
+     100.0    1590.0    0.5   1.2           !DEPB,SVPB,DBPWLB,RHOB 
+     400.0    1590.0    0.5   1.2
+     1.00     0    100.0   -1  -1           !RANG,IRLIN,DPTH,NPW,NPB
+
+
+     Test Case 2: The second test case one of the benchmark
+     problems generate by the Acoustical Society of America.
+     It demonstrates propagation in a wedge shaped region
+     and is discussed in [7, pp. 396-399]. This problem showed
+     that an accurate solution could be obtained, without back-
+     scatter as long as the single scatter approximation is used.
+     It resulted in a significant improvement in the parabolic
+     equation models. Either IOUT=0 or IOUT=-1 give accurate
+     solutions. In this case, the absorber starts at 1000 m
+     (800 m into the sediment) and has a gradient in the
+     attenuation that allows the absorber to be terminated
+     at 1500 m (1300 m into the sediment) without spurious
+     reflections off the reflector at 1500 m.
+
+     ASA Benchmark Wedge, 45 modes, 200 steps
+     1500.  25.0  100.0                     !HB,FREQ,ZS
+     45  0  0                               !M,IGEOM,IREFL
+     2   30.0    120.0                      !NDEP,ZMIN,ZINC
+     0.01   4.01   .01                      !RMIN,RMAX,RINC
+     2   50   0                             !N,IPRT,IOUT
+     0.00     200   200.0   2  3            !RANG,IRLIN,DPTH,NPW,NPB
+        0.0   1500.0   .0    1.00           !DEPW,SVPW,DBPWLW,RHOW
+      200.0   1500.0   .0    1.00
+      200.0   1700.0   .5    1.50           !DEPB,SVPB,DBPWLB,RHOB
+     1000.0   1700.0   .5    1.50
+     1500.0   1700.0  2.5    1.50
+     4.000      0     0.01  -1  -1          !RANG,IRLIN,DPTH,NPW,NPB
+
+     Test Case 3: The third test case is an example from [4] and
+     consists of a square wave corrugation of the water-sediment
+     interface with a height of 10 m and a period of .1 km,
+     extending from 5-10 km. The sediment density of 2.5 gm/cm**3
+     creates a significant multiply scattered field. The absorber
+     is homogeneous.
+
+     The published transmission loss results are under sampled in
+     mode number (28 modes) and in range (.05 km increment). 
+
+     Square wave corrugation, 120 modes (IOUT=0 and IREFL=1)
+     1500.  25.   18.0                      !HB,FREQ,ZS
+     120    0    1                            !M,IGEOM,IREFL
+     1  50.0   0.0                          !NDEP,ZMIN,ZINC
+     0.00   18.1   .010                     !RMIN,RMAX,RINC
+     101   10   0                           !N,IPRT,IOUT
+     0.00     0    100.   2  3              !RANG,IRLIN,DPTH,NPW,NPB
+        0.0    1500.0    0.0    1.0         !DEPW,SVPW,DBPWLW,RHOW
+      100.0    1500.0    0.0    1.0            
+      100.0    1704.5    0.5    2.5         !DEPB,SVPB,DBPWLB,RHOB
+      400.0    1704.5    0.5    2.5    
+     1500.0    1704.5    0.5    2.5
+     5.00     0     90.   -2 -3             !RANG,IRLIN,DPTH,NPW,NPB
+     5.05     0    100.   -2 -3         
+     5.10     0     90.   -2 -3    
+     5.15     0    100.   -2 -3     
+     5.20     0     90.   -2 -3    
+     5.25     0    100.   -2 -3
+     ...
+     The depth sequence 90-100 m, of two records, is repeated 44
+     times at .10 km intervals for a total of 88 additional records.
+     ...
+     9.70     0     90.   -2 -3    
+     9.75     0    100.   -2 -3     
+     9.80     0     90.   -2 -3    
+     9.85     0    100.   -2 -3     
+     9.90     0     90.   -2 -3    
+     9.95     0    100.   -2 -3     
+
+
+     Test Case 4:  The fourth test case is Test Case 4c from the
+     first Parabolic Equation Workshop [1, pp. 58-62]. The bottom
+     is flat for the first 150 km. The depth then decrease from 
+     3410 m to 200 m in the interval 150 km to 200 km. The test 
+     case is a low frequency upslope problem with a slow bottom,
+     which has a surficial sediment sound speed of .975 times the
+     sound speed at the bottom of the water column. The sediment
+     layer is 454 m thick. The sound speed at the bottom of the
+     sediment layer is 1.305 times the surficial sediment sound
+     speed. The absorber starts at 454 m into the sediment and
+     extend to a depth of 5000 m. The range dependence, of the
+     sediment profile, just described, is not modeled by the simple
+     interpolation procedure in COUPLE. Consequently, specially
+     constructed environmental blocks must be input, at discrete
+     ranges dictated by the slope. Note the small amount attenuation
+     used in the water layer to avoid non-physical eigenvalues.
+
+     PE Workshop I, Test Case 4c, 300 Modes (IOUT=-1)
+     5000.  25.0   600.0                     !HB,FREQ,ZS
+     300    0  0                             !M,IGEOM,IREFL
+     2  150.0    550.0                       !NDEP,ZMIN,ZINC
+     0.01  250.01   .05                      !RMIN,RMAX,RINC
+     23   90  -1                             !N,IPRT,IOUT
+       0.000   0   3410.0   10  4            !RANG,IRLIN,DPTH,NPW,NPB 
+         0.0    1539.3   0.000001 1.0        !DEPW,SVPW,DBPWLW,RHOW
+        30.0    1539.8   0.000001 1.0 
+       200.0    1534.2   0.000001 1.0 
+       600.0    1502.4   0.000001 1.0 
+       700.0    1495.4   0.000001 1.0  
+       800.0    1491.8   0.000001 1.0 
+      1000.0    1488.0   0.000001 1.0 
+      1100.0    1487.5   0.000001 1.0 
+      1200.0    1487.9   0.000001 1.0 
+      3410.0    1525.0   0.000001 1.0         
+      3410.0    1486.88  .0258  1.5          !DEPB,SVPB,DBPWLB,RHOB    
+      3864.0    1940.37  .0258  1.5                        
+      4500.0    1940.37  .2580  1.5                        
+      5000.0    1940.37  5.000  1.5                        
+     150.000   63  3410.0   10  4            !RANG,IRLIN,DPTH,NPW,NPB 
+         0.0    1539.3   0.000001 1.0          !DEPW,SVPW,DBPWLW,RHOW
+        30.0    1539.8   0.000001 1.0 
+       200.0    1534.2   0.000001 1.0 
+       600.0    1502.4   0.000001 1.0 
+       700.0    1495.4   0.000001 1.0  
+       800.0    1491.8   0.000001 1.0 
+      1000.0    1488.0   0.000001 1.0 
+      1100.0    1487.5   0.000001 1.0 
+      1200.0    1487.9   0.000001 1.0 
+      3410.0    1525.0   0.000001 1.0         
+      3410.0    1486.88  .0258  1.5          !DEPB,SVPB,DBPWLB,RHOB    
+      3864.0    1940.37  .0258  1.5                        
+      4500.0    1940.37  .2580  1.5                        
+      5000.0    1940.37  5.000  1.5                        
+     153.271  60  3200.0   10  4             !RANG,IRLIN,DPTH,NPW,NPB 
+         0.0    1539.3   0.000001 1.0          !DEPW,SVPW,DBPWLW,RHOW
+        30.0    1539.8   0.000001 1.0 
+       200.0    1534.2   0.000001 1.0 
+       600.0    1502.4   0.000001 1.0 
+       700.0    1495.4   0.000001 1.0  
+       800.0    1491.8   0.000001 1.0 
+      1000.0    1488.0   0.000001 1.0 
+      1100.0    1487.5   0.000001 1.0 
+      1200.0    1487.9   0.000001 1.0 
+      3200.0    1521.47  0.000001 1.0         
+      3200.0    1483.43  .0258  1.5          !DEPB,SVPB,DBPWLB,RHOB    
+      3654.0    1935.88  .0258  1.5                        
+      4290.0    1935.88  .2580  1.5                        
+      5000.0    1935.88  5.000  1.5                        
+     156.386  60  3000.0   10  4             !RANG,IRLIN,DPTH,NPW,NPB 
+         0.0    1539.3   0.000001 1.0          !DEPW,SVPW,DBPWLW,RHOW
+        30.0    1539.8   0.000001 1.0 
+       200.0    1534.2   0.000001 1.0 
+       600.0    1502.4   0.000001 1.0 
+       700.0    1495.4   0.000001 1.0  
+       800.0    1491.8   0.000001 1.0 
+      1000.0    1488.0   0.000001 1.0 
+      1100.0    1487.5   0.000001 1.0 
+      1200.0    1487.9   0.000001 1.0 
+      3000.0    1518.12  0.000001 1.0         
+      3000.0    1480.17  .0258  1.5          !DEPB,SVPB,DBPWLB,RHOB    
+      3454.0    1931.62  .0258  1.5                        
+      4090.0    1931.62  .2580  1.5                        
+      5000.0    1931.62  5.000  1.5 
+     ....
+     The blocks, describing the environmental regions, are repeated
+     8 times with a reduction of the water depth of 200 m in each
+     block, occurring at the ranges specified by the slope given
+     above. The surficial sediment sound speed is re-computed with
+     each depth change and the sediment sound speed profile is
+     input accordingly.
+     ....                       
+     184.424  30  1200.0   9  4             !RANG,IRLIN,DPTH,NPW,NPB 
+         0.0    1539.3   0.000001 1.0          !DEPW,SVPW,DBPWLW,RHOW
+        30.0    1539.8   0.000001 1.0 
+       200.0    1534.2   0.000001 1.0 
+       600.0    1502.4   0.000001 1.0 
+       700.0    1495.4   0.000001 1.0  
+       800.0    1491.8   0.000001 1.0 
+      1000.0    1488.0   0.000001 1.0 
+      1100.0    1487.5   0.000001 1.0 
+      1200.0    1487.9   0.000001 1.0 
+      1200.0    1450.70  .0258  1.5          !DEPB,SVPB,DBPWLB,RHOB    
+      1654.0    1893.17  .0258  1.5                        
+      2290.0    1893.17  .2580  1.5                        
+      5000.0    1893.17  5.000  1.5                        
+     185.981   30  1100.0   8  4            !RANG,IRLIN,DPTH,NPW,NPB 
+         0.0    1539.3   0.000001 1.0          !DEPW,SVPW,DBPWLW,RHOW
+        30.0    1539.8   0.000001 1.0 
+       200.0    1534.2   0.000001 1.0 
+       600.0    1502.4   0.000001 1.0 
+       700.0    1495.4   0.000001 1.0  
+       800.0    1491.8   0.000001 1.0 
+      1000.0    1488.0   0.000001 1.0 
+      1100.0    1487.5   0.000001 1.0 
+      1100.0    1450.31  .0258  1.5          !DEPB,SVPB,DBPWLB,RHOB    
+      1554.0    1892.66  .0258  1.5                        
+      2190.0    1892.66  .2580  1.5                        
+      5000.0    1892.66  5.000  1.5                        
+     ....
+     The blocks, describing the environmental regions, are repeated
+     7 times with a reduction of the water depth of 100 m in each
+     block, occurring at the ranges specified by the slope indicated
+     above.
+     ....
+     198.442  30    300.0    4  4            !RANG,IRLIN,DPTH,NPW,NPB 
+         0.0    1539.3   0.000001 1.0        !DEPW,SVPW,DBPWLW,RHOW
+        30.0    1539.8   0.000001 1.0 
+       200.0    1534.2   0.000001 1.0 
+       300.0    1526.25  0.000001 1.0 
+       300.0    1488.09  .0258  1.5          !DEPB,SVPB,DBPWLB,RHOB    
+       754.0    1941.96  .0258  1.5                        
+      1390.0    1941.96  .2580  1.5                        
+      5000.0    1941.96  5.000  1.5                        
+     200.000     0   200.0   3  4            !RANG,IRLIN,DPTH,NPW,NPB 
+         0.0    1539.3   0.000001 1.0        !DEPW,SVPW,DBPWLW,RHOW
+        30.0    1539.8   0.000001 1.0 
+       200.0    1534.2   0.000001 1.0 
+       200.0    1495.85  .0258  1.5          !DEPB,SVPB,DBPWLB,RHOB    
+       654.0    1952.08  .0258  1.5                        
+      1290.0    1952.08  .2580  1.5                        
+      5000.0    1952.08  5.000  1.5
+
+
+     IV. INPUT AND OUTPUT FILES:
+
+     COUPLE.DAT = Free format input data as described above.
+
+     COUPLE.LOG  = Formatted log file (may appear on screen).
+     COUPLE.PRT  = Formatted print file.
+     COUPLE.TL   = Formatted transmission loss.
+     COUPLEO.TL  = Formatted outgoing transmission loss if IOUT=0
+     COUPLEI.TL  = Formatted ingoing transmission loss if IOUT=0
+     COUPLES.TL  = Formatted scattered transmission loss in region 1 
+                   if IOUT=0  
+
+     COUPLE.CPR  = Unformatted real and imaginary parts of the complex 
+                   pressure.
+     COUPLEO.CPR = Unformatted outgoing complex pressure if IOUT=0
+     COUPLEI.CPR = Unformatted ingoing complex pressure if IOUT=0
+     COUPLES.CPR = Unformatted scattered complex pressure in region 1 
+                   if IOUT=0  
+
+
+     V. COMPILING, LINKING AND RUNNING:
+
+       Windows XP, Command window (DOS): There is a batch file  
+     called fallsubs_g95.bat that compiles all the subroutines (57)
+     using the g95 free FORTRAN compiler. The Fortran source code
+     has names of the form *.for. To compile the subroutines, type
+     fallsubs_g95.bat in a command window in the directory containing
+     the source code.
+
+       Next, there is a batch file called ar_couple.bat that 
+     creates a library called libcouple.a containing all the
+     subroutines. Generate the library by typing ar_couple.bat
+     in the same command window. Finally, there is a batch file
+     called flcouple_g95.bat that compiles the main program COUPLE
+     and links it with the library of subroutines. To compile
+     and link the main program COUPLE, type flcouple_g95.bat
+     in the command window.
+
+       Before running the program, use a text editor to create
+     a input file for COUPLE called "name".dat in the directory
+     containing couple.exe. There is a batch file called COUPLE.BAT
+     that imports the input file "name".dat, runs the program and
+     handles the output file naming. To run COUPLE type
+
+     COUPLE.BAT "name"
+
+     in the same command window. When the program finishes, some or
+     all of the output files listed above are created with "name"
+     in place of COUPLE and with the various extensions. The string
+     "name" should be no more than 7 characters for compatibility
+     with DOS, where the maximum is 8. The format of the output
+     files is established in the subroutines HEADER and CPRES.
+
+     Unix: There is a unix make file called "makefile" that lists all 
+     the subroutines. To compile and link type "make couple" at the
+     unix prompt. There is a script file called "couple_unix.bat"
+     that runs the program and handles the input and output file
+     naming. To run couple perform the following steps. First create
+     an input file, as described above, with a unique name like
+     "newrun.dat." Next use the vi editor to replace the "oldrun"
+     from the last run with the "newrun" everywhere in couple_unix.bat.
+     This can be done with the vi command "%s/oldrun/newrun/g" at the
+     ":" prompt in vi. Exit vi. Lastly run couple in the batch mode
+     by typing the three lines "batch <cr>" and "couple_unix.bat <cr>"
+     and "control d <cr>" at,the unix prompt. These unix procedures
+     have not been tested, recently.
+     
+       It is necessary to open a file in the main program, say 
+     COUPLE.LOG, to except the output written with WRITE(* that
+     normally comes to the screen in a DOS window. It is also be
+     necessary to change timing calls in the main program COUPLE
+     and the date call in HEADER, which are system dependent.
+
+     VI. COUPLE07 versus COUPLE97:
+
+       A predecessor, COUPLE97, of the current program COUPLE07 was
+     posted on the internet in 1997. The current program COUPLE07
+     was developed in an attempt to simplify the inputs. COUPLE97
+     supported two different mode solvers (Search and Galerkin)
+     while COUPLE07 retains only one (Galerkin) and eliminates
+     redundant inputs. A second clarification results from specifying
+     the environmental profiles at the range where they take effect,
+     much like the standard parabolic equations models of underwater
+     acoustics.
+
+       Other simplifications or improvements were incorporated
+     during the ten years between the posting of the two models.
+     The most notable of these are: Only one source depth is
+     used. It is no longer possible to save eigenvalues and
+     eigenfunctions that recur farther down-range in the
+     calculation. The first region can be long and flat. The
+     adiabatic option has been implemented. Simplified range
+     interpolation of environmental profiles is now possible.
+     This makes setting up the input file easier in some cases.
+
+       A bug in subroutine AMAT in COUPLE97 caused the treatment
+     of non-constant density profiles in the water layer to be
+     wrong. This problem has been fixed in COUPL07. The fundamental
+     matrix solution [9] is computed in COUPLE07, although it is
+     not entirely necessary.
+
+       The heavy handed treatment of non-physical eigenvaules in
+     in COUPLE97 has been replaced by a call to subroutine ABORTC,
+     which stops execution of COUPLE07. Non-physical eigenvaules
+     can often be avoided by adding a small amount of attenuation
+     to the water layer, as recommended above.
+
+
+     VII. UTILITY FILES:
+
+       All of these files are ASCII text files and they may be edited
+     and addapted to other compilers and operating systems.
+
+     COUPLE07.txt = This documentation file.
+     COUPLE.FOR = Main program FORTRAN source code. The are also
+                  57 subroutines.
+     TEST1.DAT-TEST4.DAT = Input data files for four test cases
+
+     fallsubs_g95.bat = Batch file to compile all 57 subroutines
+                         using the g95 FORTRAN compiler
+     ar_couple.bat = Batch file to combine the 57 subroutines into
+                     a library called libcouple.a for use with g95.
+     flcouple_g95.bat = Batch file to compile COUPLE.FOR and link
+                         it with the subroutines in libcouple.a
+                         using the g95 FORTRAN compiler.
+
+     fallsubs_lf90.bat = Batch file to compile all 57 subroutines
+                         using Lahey FORTRAN 90
+     COUPLE.LNK = A list of all all 58 of the FORTRAN object files,
+                  for use by the Lahey FORTRAN 90 linker.
+     flcouple_lf90.bat = Batch file to compile COUPLE.FOR and link
+                         it with the subroutines using Lahey
+                         FORTRAN 90
+
+     COUPLE.BAT = DOS batch file to run couple in a Command window
+                  and handle the naming of output files (Its use
+                  is describe above).
+
+     Makefile = Unix makefile to compile and link couple.
+                    It has not been used and may be missing some
+                    tab characters.
+     couple_unix.bat = Unix batch file to run couple and handle
+                       naming of output files (Its use is also
+                       describe above).
+
+
+     REFERENCES:
+
+     1. J. A. Davis, D. White and R. C. Cavanagh, "NORDA Parabolic
+     Equation Workshop," NORDA Technical Note 143 (Naval Ocean
+     Research and Development Activity, Stennis Space Center,
+     MS, 1982).
+
+     2. R. B. Evans, "A coupled mode solution for acoustic prop-
+     agation in a waveguide with stepwise depth variations of a 
+     penetrable bottom," J. Acoust. Soc. Am. 74, 188-195 (1983).
+
+     3. R. B. Evans and K. E. Gilbert, "Acoustic propagation in a 
+     refracting ocean waveguide with an irregular interface," Comp. 
+     Maths. Appl. 11, 795-805 (1985). 
+
+     4. R. B. Evans and K. E. Gilbert, "The perodic extension of 
+     stepwise coupled modes," J. Acoust. Soc. Am. 77, 983-988 (1985).
+
+     5. R. B. Evans, "The decoupling of stepwise coupled modes," J. 
+     Acoust. Soc. Am. 80, 1414-1418 (1986).
+
+     6. M. B. Porter, F. B. Jensen and C. M. Ferla, "The problem of 
+     energy conservation on one way models," J. Acoust. Soc. Am. 89, 
+     1058-1067 (1991).
+
+     7. F. B. Jensen, W. A. Kuperman, M. B. Porter and H. Schmidt,
+     Computational Ocean Acoustics (AIP Press, New York, 1994).
+
+     8. F. B. Jensen, "On the use of stair steps to approximate
+     bathymetry changes in ocean acoustics," J. Acoust. Soc. Am. 104,
+     1310-1315 (1998).
+
+     9. R. B. Evans, "Stepwise coupled mode scattering of ambient
+     noise by a cylindrically symmetric seamount," J. Acoust. Soc.
+     Am. 119, 161-167 (2006).

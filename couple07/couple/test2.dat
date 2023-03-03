@@ -1,0 +1,13 @@
+Test Case 2: ASA Benchmark Wedge, 45 modes, 200 steps
+1500.  25.0  100.0                      !HB,FREQ,ZS
+45  0  0                                !M,IGEOM,IREFL
+2   30.0    120.0                       !NDEP,ZMIN,ZINC
+0.01   4.01   .01                       !RMIN,RMAX,RINC
+2   50  -1                              !N,IPRT,IOUT
+0.00     200   200.0   2  3             !RANGE,IRLIN,DPTH,NPW,NPB
+0.0      1500.0   .0    1.00            !DEPW,SVPW,DBPWLW,RHOW
+200.0    1500.0   .0    1.00
+200.0    1700.0   .5    1.50            !DEPB,SVPB,DBPWLB,RHOB
+1000.0   1700.0   .5    1.50
+1500.0   1700.0  2.5    1.50
+4.000      0     0.01  -2  -3           !RANGE,IRLIN,DPTH,NPW,NPB
