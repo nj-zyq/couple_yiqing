@@ -42,7 +42,7 @@ Steps for running COUPLE:
     
     ```
     $ mv COUPLE.TL miao.TL
-    $ mv COUPLE.CPR miao.COR
+    $ mv COUPLE.CPR miao.CPR
     $ mv COUPLE.PRT miao.PRT
     ```
 
